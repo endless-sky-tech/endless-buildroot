@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_GENERAL_PATH/package/zlmediakit/Config.in"

@@ -1,0 +1,9 @@
+config BR2_OPENIPC_SOC_VENDOR
+	string "SoC vendor"
+	default "aarch64"
+
+config BR2_OPENIPC_SOC_MODEL
+	string "SoC model"
+	default "aarch64"
+
+source "$BR2_EXTERNAL_GENERAL_PATH/package/Config.in"

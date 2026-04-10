@@ -1,0 +1,7 @@
+config BR2_PACKAGE_ZLMEDIAKIT
+	bool "zlmediakit"
+	depends on BR2_PACKAGE_OPENSSL
+	help
+	  ZLMediaKit is an high-performance and lightweight stream server and client framework based on C++11.
+
+	  https://github.com/ZLMediaKit/ZLMediaKit

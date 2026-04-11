@@ -10,6 +10,11 @@ main() {
 
     board_name=$1
     shift  # 移除第一个参数（board名称）
+    prepare_sdk_after_build=0
+
+    if [ $# -eq 0 ]; then
+        prepare_sdk_after_build=1
+    fi
 
     config_file="$(pwd)/board/${board_name}/configs/defconfig"
 
@@ -26,6 +31,10 @@ main() {
 
     # 编译
     make -C buildroot O=${output_dir} "$@"
+
+    if [ ${prepare_sdk_after_build} -eq 1 ]; then
+        make -C buildroot O=${output_dir} prepare-sdk
+    fi
 }
 
 main "$@"

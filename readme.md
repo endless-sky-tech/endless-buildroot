@@ -26,21 +26,6 @@ busybox配置
 ./build.sh 3516cv610
 ```
 
-## rk1126b
-```
-外部工具链
-/opt/aarch64-rockchip1240-linux-gnu
-
-busybox配置
-./build.sh rk1126b busybox-menuconfig
-
-配置buildroot
-./build.sh rk1126b menuconfig
-
-编译
-./build.sh rk1126b
-```
-
 ## gk7206
 ```
 busybox配置
@@ -51,21 +36,4 @@ busybox配置
 
 编译
 ./build.sh gk7206
-```
-
-## 22ap10
-```
-busybox配置
-./build.sh 22ap10 busybox-menuconfig
-
-配置buildroot
-./build.sh 22ap10 menuconfig
-
-编译
-./build.sh 22ap10
-```
-
-## m64x86
-```
-./build.sh m64x86
 ```

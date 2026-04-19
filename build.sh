@@ -7,71 +7,115 @@ REPO_ROOT="${SCRIPT_DIR}"
 BUILDROOT_DIR="${REPO_ROOT}/buildroot"
 BR2_EXTERNAL_DIR="${REPO_ROOT}/general"
 
-AX615_BOARD="ax615"
-AX615_SDK_ROOT="/opt/ax"
-AX615_SDK_NAME="arm-rel-linux-uclibcgnueabihf"
-AX615_SDK_PATH="${AX615_SDK_ROOT}/${AX615_SDK_NAME}"
-AX615_SDK_ARCHIVE="${REPO_ROOT}/dl/ax615-sdk-toolchain.tar.xz"
-AX615_SDK_BUILDROOT_CACHE="${REPO_ROOT}/dl/toolchain-external-custom/ax615-sdk-toolchain.tar.xz"
-AX615_SDK_REL_BIN_PATH="${AX615_SDK_NAME}/bin"
-AX615_TOOLCHAIN_BUILD_DIR_NAME="toolchain-external"
+TOOLCHAIN_BUILDROOT_CACHE_ROOT="${REPO_ROOT}/dl/toolchain-external-custom"
+TOOLCHAIN_BUILD_DIR_NAME="toolchain-external"
 
-AX615_SDK_ARCHIVE_REFRESHED=0
-AX615_SDK_ARCHIVE_STAGING_DIR=""
+TOOLCHAIN_ARCHIVE_REFRESHED=0
+TOOLCHAIN_ARCHIVE_STAGING_DIR=""
+TOOLCHAIN_BOARD=""
+TOOLCHAIN_SOURCE_PATH=""
+TOOLCHAIN_SOURCE_NAME=""
+TOOLCHAIN_PREFIX=""
+TOOLCHAIN_ARCHIVE=""
+TOOLCHAIN_BUILDROOT_CACHE=""
+TOOLCHAIN_REL_BIN_PATH=""
 
-cleanup_ax615_sdk_archive_staging() {
-    if [ -n "${AX615_SDK_ARCHIVE_STAGING_DIR}" ] && [ -d "${AX615_SDK_ARCHIVE_STAGING_DIR}" ]; then
-        rm -rf "${AX615_SDK_ARCHIVE_STAGING_DIR}"
+cleanup_toolchain_archive_staging() {
+    if [ -n "${TOOLCHAIN_ARCHIVE_STAGING_DIR}" ] && [ -d "${TOOLCHAIN_ARCHIVE_STAGING_DIR}" ]; then
+        rm -rf "${TOOLCHAIN_ARCHIVE_STAGING_DIR}"
     fi
 }
 
-trap cleanup_ax615_sdk_archive_staging EXIT
+trap cleanup_toolchain_archive_staging EXIT
 
-ax615_archive_has_expected_layout() {
+extract_quoted_config_value() {
+    local key=$1
+    local config_file=$2
+
+    sed -n -E "s/^${key}=\"([^\"]*)\"$/\\1/p" "$config_file" | head -n1
+}
+
+has_preinstalled_external_toolchain() {
+    local config_file=$1
+
+    grep -q '^BR2_TOOLCHAIN_EXTERNAL=y$' "$config_file" \
+        && grep -q '^BR2_TOOLCHAIN_EXTERNAL_PREINSTALLED=y$' "$config_file"
+}
+
+load_external_toolchain_context() {
+    local board_name=$1
+    local config_file=$2
+
+    if ! has_preinstalled_external_toolchain "$config_file"; then
+        return 1
+    fi
+
+    TOOLCHAIN_SOURCE_PATH=$(extract_quoted_config_value "BR2_TOOLCHAIN_EXTERNAL_PATH" "$config_file")
+    TOOLCHAIN_PREFIX=$(extract_quoted_config_value "BR2_TOOLCHAIN_EXTERNAL_CUSTOM_PREFIX" "$config_file")
+
+    if [ -z "$TOOLCHAIN_PREFIX" ]; then
+        TOOLCHAIN_PREFIX=$(extract_quoted_config_value "BR2_TOOLCHAIN_EXTERNAL_PREFIX" "$config_file")
+    fi
+
+    if [ -z "$TOOLCHAIN_SOURCE_PATH" ] || [ -z "$TOOLCHAIN_PREFIX" ]; then
+        echo "Error: Missing external toolchain path or prefix in $config_file"
+        exit 1
+    fi
+
+    TOOLCHAIN_BOARD="$board_name"
+    TOOLCHAIN_SOURCE_NAME=$(basename -- "$TOOLCHAIN_SOURCE_PATH")
+    TOOLCHAIN_ARCHIVE="${REPO_ROOT}/dl/${TOOLCHAIN_BOARD}-sdk-toolchain.tar.xz"
+    TOOLCHAIN_BUILDROOT_CACHE="${TOOLCHAIN_BUILDROOT_CACHE_ROOT}/$(basename -- "$TOOLCHAIN_ARCHIVE")"
+    TOOLCHAIN_REL_BIN_PATH="${TOOLCHAIN_SOURCE_NAME}/bin"
+
+    return 0
+}
+
+external_toolchain_archive_has_expected_layout() {
     local archive_path=$1
-    local expected_tool_path_prefix="${AX615_SDK_NAME}/${AX615_SDK_REL_BIN_PATH}"
+    local expected_tool_path_prefix="${TOOLCHAIN_SOURCE_NAME}/${TOOLCHAIN_REL_BIN_PATH}"
 
     if [ ! -s "$archive_path" ]; then
         return 1
     fi
 
     tar -tf "$archive_path" --wildcards \
-        "${expected_tool_path_prefix}/${AX615_SDK_NAME}-*" >/dev/null 2>&1
+        "${expected_tool_path_prefix}/${TOOLCHAIN_PREFIX}-*" >/dev/null 2>&1
 }
 
-invalidate_ax615_sdk_download_cache() {
-    rm -f "$AX615_SDK_BUILDROOT_CACHE"
+invalidate_external_toolchain_download_cache() {
+    rm -f "$TOOLCHAIN_BUILDROOT_CACHE"
 }
 
 archive_needs_refresh() {
-    local sdk_path=$1
+    local source_path=$1
     local archive_path=$2
 
     if [ ! -s "$archive_path" ]; then
         return 0
     fi
 
-    if find "$sdk_path" -newer "$archive_path" -print -quit | grep -q .; then
+    if find "$source_path" -newer "$archive_path" -print -quit | grep -q .; then
         return 0
     fi
 
     return 1
 }
 
-populate_ax615_sdk_links() {
-    local staged_sdk_path=$1
+populate_external_toolchain_links() {
+    local staged_toolchain_path=$1
     local nested_bin tool tool_name
     local -a prefixed_tools
 
-    nested_bin="${staged_sdk_path}/${AX615_SDK_NAME}/bin"
+    nested_bin="${staged_toolchain_path}/${TOOLCHAIN_SOURCE_NAME}/bin"
     mkdir -p "$nested_bin"
 
     shopt -s nullglob
-    prefixed_tools=("${staged_sdk_path}/bin/${AX615_SDK_NAME}-"*)
+    prefixed_tools=("${staged_toolchain_path}/bin/${TOOLCHAIN_PREFIX}-"*)
     shopt -u nullglob
 
     if [ ${#prefixed_tools[@]} -eq 0 ]; then
-        echo "Error: No AX615 SDK tools matching ${AX615_SDK_NAME}-* found in ${staged_sdk_path}/bin"
+        echo "Error: No toolchain tools matching ${TOOLCHAIN_PREFIX}-* found in ${staged_toolchain_path}/bin"
         exit 1
     fi
 
@@ -81,72 +125,72 @@ populate_ax615_sdk_links() {
     done
 }
 
-invalidate_ax615_toolchain_state() {
+invalidate_external_toolchain_state() {
     local output_dir=$1
 
-    rm -rf "${output_dir}/build/${AX615_TOOLCHAIN_BUILD_DIR_NAME}"
+    rm -rf "${output_dir}/build/${TOOLCHAIN_BUILD_DIR_NAME}"
     rm -rf "${output_dir}/host/opt/ext-toolchain"
 }
 
-refresh_ax615_sdk_archive() {
-    local archive_dir archive_tmp staged_sdk_path
+refresh_external_toolchain_archive() {
+    local archive_dir archive_tmp staged_toolchain_path
     local archive_has_expected_layout=0
 
-    AX615_SDK_ARCHIVE_REFRESHED=0
-    AX615_SDK_ARCHIVE_STAGING_DIR=""
+    TOOLCHAIN_ARCHIVE_REFRESHED=0
+    TOOLCHAIN_ARCHIVE_STAGING_DIR=""
 
-    if ax615_archive_has_expected_layout "$AX615_SDK_ARCHIVE"; then
+    if external_toolchain_archive_has_expected_layout "$TOOLCHAIN_ARCHIVE"; then
         archive_has_expected_layout=1
     fi
 
-    if [ "$archive_has_expected_layout" -eq 1 ] && [ -d "$AX615_SDK_PATH" ] && ! archive_needs_refresh "$AX615_SDK_PATH" "$AX615_SDK_ARCHIVE"; then
-        if [ -e "$AX615_SDK_BUILDROOT_CACHE" ] && [ "$AX615_SDK_ARCHIVE" -nt "$AX615_SDK_BUILDROOT_CACHE" ]; then
-            invalidate_ax615_sdk_download_cache
+    if [ "$archive_has_expected_layout" -eq 1 ] && [ -d "$TOOLCHAIN_SOURCE_PATH" ] && ! archive_needs_refresh "$TOOLCHAIN_SOURCE_PATH" "$TOOLCHAIN_ARCHIVE"; then
+        if [ -e "$TOOLCHAIN_BUILDROOT_CACHE" ] && [ "$TOOLCHAIN_ARCHIVE" -nt "$TOOLCHAIN_BUILDROOT_CACHE" ]; then
+            invalidate_external_toolchain_download_cache
         fi
         return
     fi
 
-    if [ "$archive_has_expected_layout" -eq 1 ] && [ ! -d "$AX615_SDK_PATH" ]; then
-        echo "Warning: AX615 SDK source not found at ${AX615_SDK_PATH}; reusing existing archive ${AX615_SDK_ARCHIVE}" >&2
-        if [ -e "$AX615_SDK_BUILDROOT_CACHE" ] && [ "$AX615_SDK_ARCHIVE" -nt "$AX615_SDK_BUILDROOT_CACHE" ]; then
-            invalidate_ax615_sdk_download_cache
+    if [ "$archive_has_expected_layout" -eq 1 ] && [ ! -d "$TOOLCHAIN_SOURCE_PATH" ]; then
+        echo "Warning: ${TOOLCHAIN_BOARD} toolchain source not found at ${TOOLCHAIN_SOURCE_PATH}; reusing existing archive ${TOOLCHAIN_ARCHIVE}" >&2
+        if [ -e "$TOOLCHAIN_BUILDROOT_CACHE" ] && [ "$TOOLCHAIN_ARCHIVE" -nt "$TOOLCHAIN_BUILDROOT_CACHE" ]; then
+            invalidate_external_toolchain_download_cache
         fi
         return
     fi
 
-    if [ -s "$AX615_SDK_ARCHIVE" ] && [ "$archive_has_expected_layout" -ne 1 ]; then
-        echo "Warning: AX615 SDK archive ${AX615_SDK_ARCHIVE} is missing expected staged layout ${AX615_SDK_REL_BIN_PATH}; rebuilding it" >&2
+    if [ -s "$TOOLCHAIN_ARCHIVE" ] && [ "$archive_has_expected_layout" -ne 1 ]; then
+        echo "Warning: ${TOOLCHAIN_BOARD} toolchain archive ${TOOLCHAIN_ARCHIVE} is missing expected staged layout ${TOOLCHAIN_REL_BIN_PATH}; rebuilding it" >&2
     fi
 
-    if [ ! -d "$AX615_SDK_PATH" ]; then
-        echo "Error: AX615 SDK not found: $AX615_SDK_PATH"
+    if [ ! -d "$TOOLCHAIN_SOURCE_PATH" ]; then
+        echo "Error: ${TOOLCHAIN_BOARD} toolchain not found: $TOOLCHAIN_SOURCE_PATH"
         exit 1
     fi
 
-    archive_dir=$(dirname "$AX615_SDK_ARCHIVE")
-    archive_tmp="${AX615_SDK_ARCHIVE}.tmp"
-    AX615_SDK_ARCHIVE_STAGING_DIR=$(mktemp -d)
-    staged_sdk_path="${AX615_SDK_ARCHIVE_STAGING_DIR}/${AX615_SDK_NAME}"
+    archive_dir=$(dirname "$TOOLCHAIN_ARCHIVE")
+    archive_tmp="${TOOLCHAIN_ARCHIVE}.tmp"
+    TOOLCHAIN_ARCHIVE_STAGING_DIR=$(mktemp -d)
+    staged_toolchain_path="${TOOLCHAIN_ARCHIVE_STAGING_DIR}/${TOOLCHAIN_SOURCE_NAME}"
 
     mkdir -p "$archive_dir"
     rm -f "$archive_tmp"
-    cp -a "$AX615_SDK_PATH" "$AX615_SDK_ARCHIVE_STAGING_DIR/"
-    populate_ax615_sdk_links "$staged_sdk_path"
-    tar -C "$AX615_SDK_ARCHIVE_STAGING_DIR" -cJf "$archive_tmp" "$AX615_SDK_NAME"
-    mv "$archive_tmp" "$AX615_SDK_ARCHIVE"
-    cleanup_ax615_sdk_archive_staging
-    AX615_SDK_ARCHIVE_STAGING_DIR=""
-    AX615_SDK_ARCHIVE_REFRESHED=1
+    cp -a "$TOOLCHAIN_SOURCE_PATH" "$TOOLCHAIN_ARCHIVE_STAGING_DIR/"
+    populate_external_toolchain_links "$staged_toolchain_path"
+    tar -C "$TOOLCHAIN_ARCHIVE_STAGING_DIR" -cJf "$archive_tmp" "$TOOLCHAIN_SOURCE_NAME"
+    mv "$archive_tmp" "$TOOLCHAIN_ARCHIVE"
+    cleanup_toolchain_archive_staging
+    TOOLCHAIN_ARCHIVE_STAGING_DIR=""
+    TOOLCHAIN_ARCHIVE_REFRESHED=1
 
-    if [ "$AX615_SDK_ARCHIVE_REFRESHED" -eq 1 ]; then
-        invalidate_ax615_sdk_download_cache
+    if [ "$TOOLCHAIN_ARCHIVE_REFRESHED" -eq 1 ]; then
+        invalidate_external_toolchain_download_cache
     fi
 }
 
-create_ax615_defconfig() {
+create_external_toolchain_defconfig() {
     local source_defconfig=$1
     local temp_defconfig=$2
-    local archive_url="file://${AX615_SDK_ARCHIVE}"
+    local archive_url="file://${TOOLCHAIN_ARCHIVE}"
 
     mkdir -p "$(dirname "$temp_defconfig")"
 
@@ -157,7 +201,7 @@ create_ax615_defconfig() {
 BR2_TOOLCHAIN_EXTERNAL_DOWNLOAD=y
 # BR2_TOOLCHAIN_EXTERNAL_PREINSTALLED is not set
 BR2_TOOLCHAIN_EXTERNAL_URL="${archive_url}"
-BR2_TOOLCHAIN_EXTERNAL_REL_BIN_PATH="${AX615_SDK_REL_BIN_PATH}"
+BR2_TOOLCHAIN_EXTERNAL_REL_BIN_PATH="${TOOLCHAIN_REL_BIN_PATH}"
 BR2_DEFCONFIG="${source_defconfig}"
 EOF
 }
@@ -168,22 +212,23 @@ resolve_defconfig() {
     local output_dir=$3
     local temp_defconfig
 
-    if [ "$board_name" != "$AX615_BOARD" ]; then
+    if ! load_external_toolchain_context "$board_name" "$config_file"; then
         printf '%s\n' "$config_file"
         return
     fi
 
-    refresh_ax615_sdk_archive
-    if [ "$AX615_SDK_ARCHIVE_REFRESHED" -eq 1 ]; then
-        invalidate_ax615_toolchain_state "$output_dir"
+    refresh_external_toolchain_archive
+    if [ "$TOOLCHAIN_ARCHIVE_REFRESHED" -eq 1 ]; then
+        invalidate_external_toolchain_state "$output_dir"
     fi
-    temp_defconfig="${output_dir}/ax615-sdk-toolchain.defconfig"
-    create_ax615_defconfig "$config_file" "$temp_defconfig"
+    temp_defconfig="${output_dir}/${board_name}-sdk-toolchain.defconfig"
+    create_external_toolchain_defconfig "$config_file" "$temp_defconfig"
     printf '%s\n' "$temp_defconfig"
 }
 
 main() {
     local board_name config_file output_dir effective_defconfig
+    local prepare_sdk_after_build=0
 
     if [ $# -eq 0 ]; then
         echo "Usage: $0 <board_name> [additional_make_args...]"
@@ -192,6 +237,10 @@ main() {
 
     board_name=$1
     shift  # 移除第一个参数（board名称）
+
+    if [ $# -eq 0 ]; then
+        prepare_sdk_after_build=1
+    fi
 
     config_file="${REPO_ROOT}/board/${board_name}/configs/defconfig"
 
@@ -207,8 +256,16 @@ main() {
     # 生成默认配置
     make -C "$BUILDROOT_DIR" BR2_EXTERNAL="$BR2_EXTERNAL_DIR" O="${output_dir}" BR2_DEFCONFIG="$effective_defconfig" defconfig
 
+    if [ $# -eq 1 ] && [ "$1" = "defconfig" ]; then
+        exit 0
+    fi
+
     # 编译
     make -C "$BUILDROOT_DIR" BR2_EXTERNAL="$BR2_EXTERNAL_DIR" O="${output_dir}" "$@"
+
+    if [ "$prepare_sdk_after_build" -eq 1 ]; then
+        make -C "$BUILDROOT_DIR" BR2_EXTERNAL="$BR2_EXTERNAL_DIR" O="${output_dir}" prepare-sdk
+    fi
 }
 
 main "$@"

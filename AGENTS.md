@@ -34,6 +34,7 @@ Buildroot 2024.02.6 工程，用于构建多平台嵌入式 Linux 文件系统�
 
 - **aarch64** - ARM64 Cortex-A53
 - **3516cv610** - HiSilicon Hi3516CV610 (ARM Cortex-A7)
+- **ax615** - AXERA AX615 (Dual ARM Cortex-A7). 使用 `/opt/ax/arm-rel-linux-uclibcgnueabihf` 作为 vendor SDK source，`./build.sh ax615` 会自动 repackaging 为 `dl/ax615-sdk-toolchain.tar.xz`，并让最终的 `output/ax615/host` 保持 self-contained，不再运行时依赖 `/opt/ax`。
 - **3519dv500** - HiSilicon Hi3519DV500
 - **3403** - ARM platform
 - **22ap10** - ARM Cortex-A7

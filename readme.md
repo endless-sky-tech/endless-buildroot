@@ -26,6 +26,23 @@ busybox配置
 ./build.sh 3516cv610
 ```
 
+## ax615
+```
+外部工具链
+/opt/ax/arm-rel-linux-uclibcgnueabihf
+./build.sh ax615 会自动把该 SDK 重新打包为 `dl/ax615-sdk-toolchain.tar.xz`，并切换到 Buildroot 的外部下载工具链模式。
+最终生成的 `output/ax615/host` 是 self-contained 的，可单独移动和使用，不再运行时依赖 `/opt/ax`。
+
+busybox配置
+./build.sh ax615 busybox-menuconfig
+
+配置buildroot
+./build.sh ax615 menuconfig
+
+编译
+./build.sh ax615
+```
+
 ## rk1126b
 ```
 外部工具链

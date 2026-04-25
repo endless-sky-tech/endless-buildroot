@@ -59,9 +59,9 @@ busybox配置
 6. 默认执行 `./build.sh <board>` 完整构建后，还会自动执行 `prepare-sdk`，在 `output/<board>/host/` 生成 `relocate-sdk.sh`，便于整体拷走后再做路径修正。
 ```
 
-如果只是仓库内构建使用，可以继续使用 `toolchains/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名。
+如果只是仓库内构建使用，可以继续使用 `toolchains/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名。这个归档只供 Buildroot external-download 流程复用，不作为对外发布资产。
 
-如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，统一放在 `dist/toolchains/` 下，文件名使用：
+如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，发布包必须从 `output/<board>/host/` 打包，而不是直接发布 `toolchains/<board>-sdk-toolchain.tar.xz`。`host/` 是完整的、包含 sysroot 的可搬迁工具链目录，里面包含 Buildroot host 工具、`opt/ext-toolchain`、目标 sysroot 和 `relocate-sdk.sh`。压缩包内顶层目录不要叫 `host`，必须使用发布文件名去掉 `.tar.gz` 后的目录名。对外发布文件统一放在 `dist/toolchains/` 下，文件名使用：
 
 ```text
 toolchain-<chip>-<tc_ver>-gcc<gcc_ver>-linux<headers_ver>-<arch>-<libc>-YYYY.MM.DD.tar.gz
@@ -70,6 +70,7 @@ toolchain-<chip>-<tc_ver>-gcc<gcc_ver>-linux<headers_ver>-<arch>-<libc>-YYYY.MM.
 命名示例：
 - `toolchain-hi3516cv610-v01c02-gcc10-linux5.10-armv7-musl-2026.04.11.tar.gz`
 - `toolchain-hi3519dv500-v01c01-gcc10-linux5.10-aarch64-glibc-2026.04.11.tar.gz`
+- `toolchain-ax615-buildroot-sdk-rel-gcc8.3.0-linux4.19.125-armv7-uclibc-2026.04.25.tar.gz`
 - `toolchain-gk7206-gcc12.2.0-linux5.10-armv7-uclibc-2026.04.11.tar.gz`
 - `toolchain-rk1126b-rockchip1240-gcc12-linux6.1-armv7-glibc-2026.04.11.tar.gz`
 

@@ -45,7 +45,9 @@ Buildroot 2024.02.6 工程，用于构建多平台嵌入式 Linux 文件系统�
 
 对于 defconfig 中使用 `BR2_TOOLCHAIN_EXTERNAL_PREINSTALLED=y` 的板卡，`./build.sh <board>` 会优先查找 `toolchains/` 下匹配板卡名、工具链目录名或工具链前缀的压缩包，存在则直接复用；不存在时才按板卡名生成 `toolchains/<board>-sdk-toolchain.tar.xz`。脚本会生成临时 defconfig 切换到 Buildroot 的 external-download 模式。这样最终的 `output/<board>/host` 会包含 `opt/ext-toolchain`，保持 self-contained。默认完整构建完成后还会自动执行 `prepare-sdk`，在 `output/<board>/host/` 下生成 `relocate-sdk.sh` 供搬迁后修正路径。
 
-如果只是仓库内构建使用，可以使用 `toolchains/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名。如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，统一使用以下命名格式，并放在工程根目录 `dist/toolchains/` 下：
+如果只是仓库内构建使用，可以使用 `toolchains/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名。这个归档只供 Buildroot external-download 流程复用，不作为对外发布资产。
+
+如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，发布包必须从 `output/<board>/host/` 打包，而不是直接发布 `toolchains/<board>-sdk-toolchain.tar.xz`。`host/` 是完整的、包含 sysroot 的可搬迁工具链目录，里面包含 Buildroot host 工具、`opt/ext-toolchain`、目标 sysroot 和 `relocate-sdk.sh`。压缩包内顶层目录不要叫 `host`，必须使用发布文件名去掉 `.tar.gz` 后的目录名，例如 `toolchain-ax615-buildroot-sdk-rel-gcc8.3.0-linux4.19.125-armv7-uclibc-2026.04.25/`。对外发布文件统一放在工程根目录 `dist/toolchains/` 下，并使用以下命名格式：
 
 ```text
 toolchain-<chip>-<tc_ver>-gcc<gcc_ver>-linux<headers_ver>-<arch>-<libc>-YYYY.MM.DD.tar.gz
@@ -61,10 +63,11 @@ toolchain-<chip>-<tc_ver>-gcc<gcc_ver>-linux<headers_ver>-<arch>-<libc>-YYYY.MM.
 命名示例：
 - `toolchain-hi3516cv610-v01c02-gcc10-linux5.10-armv7-musl-2026.04.11.tar.gz`
 - `toolchain-hi3519dv500-v01c01-gcc10-linux5.10-aarch64-glibc-2026.04.11.tar.gz`
+- `toolchain-ax615-buildroot-sdk-rel-gcc8.3.0-linux4.19.125-armv7-uclibc-2026.04.25.tar.gz`
 - `toolchain-gk7206-gcc12.2.0-linux5.10-armv7-uclibc-2026.04.11.tar.gz`
 - `toolchain-rk1126b-rockchip1240-gcc12-linux6.1-armv7-glibc-2026.04.11.tar.gz`
 
-如果将 `output/<board>/host/` 拷贝到新路径，先执行 `output/<board>/host/relocate-sdk.sh`。
+发布包解压到新路径后，先执行解压目录内的 `relocate-sdk.sh`。
 
 ## Architecture
 

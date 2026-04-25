@@ -36,8 +36,8 @@ Buildroot 2024.02.6 工程，用于构建多平台嵌入式 Linux 文件系统�
 ## Supported Boards
 
 - **aarch64** - ARM64 Cortex-A53
-- **3516cv610** - HiSilicon Hi3516CV610 (ARM Cortex-A7). 使用 `/opt/linux/x86-arm/arm-v01c02-linux-musleabi-gcc` 作为 vendor toolchain source，`./build.sh 3516cv610` 会按需 repackaging 为 `dl/3516cv610-sdk-toolchain.tar.xz`，已有有效归档时会复用，并让最终的 `output/3516cv610/host` 保持 self-contained，不再运行时依赖 `/opt/linux/x86-arm/arm-v01c02-linux-musleabi-gcc`。
-- **ax615** - AXERA AX615 (Dual ARM Cortex-A7). 使用 `/opt/ax/arm-rel-linux-uclibcgnueabihf` 作为 vendor SDK source，`./build.sh ax615` 会按需 repackaging 为 `dl/ax615-sdk-toolchain.tar.xz`，已有有效归档时会复用，并让最终的 `output/ax615/host` 保持 self-contained，不再运行时依赖 `/opt/ax`。
+- **3516cv610** - HiSilicon Hi3516CV610 (ARM Cortex-A7). 使用 `/opt/linux/x86-arm/arm-v01c02-linux-musleabi-gcc` 作为 vendor toolchain source，`./build.sh 3516cv610` 会优先复用 `toolchains/` 下已有工具链压缩包；不存在时才按需生成 `toolchains/3516cv610-sdk-toolchain.tar.xz`，并让最终的 `output/3516cv610/host` 保持 self-contained，不再运行时依赖 `/opt/linux/x86-arm/arm-v01c02-linux-musleabi-gcc`。
+- **ax615** - AXERA AX615 (Dual ARM Cortex-A7). 使用 `/opt/ax/arm-rel-linux-uclibcgnueabihf` 作为 vendor SDK source，`./build.sh ax615` 会优先复用 `toolchains/` 下已有工具链压缩包；不存在时才按需生成 `toolchains/ax615-sdk-toolchain.tar.xz`，并让最终的 `output/ax615/host` 保持 self-contained，不再运行时依赖 `/opt/ax`。
 - **3519dv500** - HiSilicon Hi3519DV500
 - **3403** - ARM platform
 - **22ap10** - ARM Cortex-A7
@@ -45,9 +45,9 @@ Buildroot 2024.02.6 工程，用于构建多平台嵌入式 Linux 文件系统�
 
 ## External Toolchain Packaging
 
-对于 defconfig 中使用 `BR2_TOOLCHAIN_EXTERNAL_PREINSTALLED=y` 的板卡，`./build.sh <board>` 会统一按板卡名将外部工具链按需重打包到 `dl/<board>-sdk-toolchain.tar.xz`，并生成临时 defconfig 切换到 Buildroot 的 external-download 模式。这样最终的 `output/<board>/host` 会包含 `opt/ext-toolchain`，保持 self-contained。默认完整构建完成后还会自动执行 `prepare-sdk`，在 `output/<board>/host/` 下生成 `relocate-sdk.sh` 供搬迁后修正路径。
+对于 defconfig 中使用 `BR2_TOOLCHAIN_EXTERNAL_PREINSTALLED=y` 的板卡，`./build.sh <board>` 会优先查找 `toolchains/` 下匹配板卡名、工具链目录名或工具链前缀的压缩包，存在则直接复用；不存在时才按板卡名生成 `toolchains/<board>-sdk-toolchain.tar.xz`。脚本会生成临时 defconfig 切换到 Buildroot 的 external-download 模式。这样最终的 `output/<board>/host` 会包含 `opt/ext-toolchain`，保持 self-contained。默认完整构建完成后还会自动执行 `prepare-sdk`，在 `output/<board>/host/` 下生成 `relocate-sdk.sh` 供搬迁后修正路径。
 
-如果只是仓库内构建使用，继续沿用 `dl/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名即可。如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，统一使用以下命名格式：
+如果只是仓库内构建使用，可以使用 `toolchains/<board>-sdk-toolchain.tar.xz` 这套本地工作归档命名。如果需要对外发布工具链压缩包，或上传到 GitHub Release 作为 SDK 资产，统一使用以下命名格式，并放在工程根目录 `toolchains/` 下：
 
 ```text
 toolchain-<chip>-<tc_ver>-gcc<gcc_ver>-linux<headers_ver>-<arch>-<libc>-YYYY.MM.DD.tar.gz

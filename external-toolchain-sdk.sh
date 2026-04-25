@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-EXT_TC_BUILD_DIR_NAME="toolchain-external"
+EXT_TC_BUILD_DIR_NAME="toolchain-external-custom"
 
 EXT_TC_ARCHIVE_REFRESHED=0
 EXT_TC_ARCHIVE_STAGING_DIR=""
@@ -131,7 +131,7 @@ set_external_toolchain_archive() {
 
 detect_archive_rel_bin_path() {
     local archive_path=$1
-    local tool_path
+    local tool_path rel_bin_path
 
     if [ ! -s "$archive_path" ]; then
         return 1
@@ -146,7 +146,8 @@ detect_archive_rel_bin_path() {
         return 1
     fi
 
-    dirname "$tool_path"
+    rel_bin_path=$(dirname "$tool_path")
+    printf '%s\n' "${rel_bin_path#*/}"
 }
 
 add_candidate_once() {
@@ -241,6 +242,11 @@ external_toolchain_state_needs_invalidate() {
         return 1
     fi
 
+    if [ -e "${output_dir}/build/${EXT_TC_BUILD_DIR_NAME}/.stamp_extracted" ] \
+        && [ ! -d "${output_dir}/host/opt/ext-toolchain" ]; then
+        return 0
+    fi
+
     grep -Fxq "BR2_TOOLCHAIN_EXTERNAL_URL=\"${archive_url}\"" "$config_file" \
         && grep -Fxq "BR2_TOOLCHAIN_EXTERNAL_REL_BIN_PATH=\"${EXT_TC_REL_BIN_PATH}\"" "$config_file" \
         && return 1
@@ -266,7 +272,7 @@ create_toolchain_archive_from_source() {
     set_external_toolchain_archive \
         "$repo_root" \
         "${toolchains_dir}/${EXT_TC_BOARD}-sdk-toolchain.tar.xz" \
-        "${EXT_TC_SOURCE_NAME}/bin"
+        "bin"
 
     archive_tmp="${EXT_TC_ARCHIVE}.tmp"
     EXT_TC_ARCHIVE_TMP="$archive_tmp"

@@ -1,4 +1,6 @@
 dl/
 output/
 docs/superpowers/
-toolchains/
+/toolchains/
+/dist/toolchains/*
+!/dist/toolchains/.gitkeep

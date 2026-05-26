@@ -41,6 +41,20 @@ ifeq ($(BR2_PACKAGE_SQLITE_NO_SYNC),y)
 SQLITE_CFLAGS += -DSQLITE_NO_SYNC
 endif
 
+SQLITE_CFLAGS += \
+	-DSQLITE_DEFAULT_MEMSTATUS=0 \
+	-DSQLITE_OMIT_COMPILEOPTION_DIAGS \
+	-DSQLITE_OMIT_DECLTYPE \
+	-DSQLITE_OMIT_DEPRECATED \
+	-DSQLITE_OMIT_EXPLAIN \
+	-DSQLITE_OMIT_JSON \
+	-DSQLITE_OMIT_LOAD_EXTENSION \
+	-DSQLITE_OMIT_PROGRESS_CALLBACK \
+	-DSQLITE_OMIT_SHARED_CACHE \
+	-DSQLITE_OMIT_TCL_VARIABLE \
+	-DSQLITE_OMIT_TRACE \
+	-DSQLITE_OMIT_UTF16
+
 # Building with Microblaze Gcc 4.9 makes compiling to hang.
 # Work around using -O0
 ifeq ($(BR2_microblaze):$(BR2_TOOLCHAIN_GCC_AT_LEAST_5),y:)
@@ -51,6 +65,11 @@ SQLITE_CFLAGS += $(subst -Ofast,-O3,$(TARGET_CFLAGS))
 endif
 
 SQLITE_CONF_ENV = CFLAGS="$(SQLITE_CFLAGS)"
+SQLITE_CONF_OPTS += \
+	--disable-dynamic-extensions \
+	--disable-fts4 \
+	--disable-fts5 \
+	--disable-rtree
 
 ifeq ($(BR2_STATIC_LIBS),y)
 SQLITE_CONF_OPTS += --enable-dynamic-extensions=no

@@ -179,7 +179,10 @@ LIBCURL_CONF_OPTS += \
 	--enable-tftp
 else
 LIBCURL_CONF_OPTS += \
+	--disable-ftp \
 	--disable-dict \
+	--disable-doh \
+	--disable-mqtt \
 	--disable-gopher \
 	--disable-imap \
 	--disable-pop3 \
@@ -189,6 +192,22 @@ LIBCURL_CONF_OPTS += \
 	--disable-telnet \
 	--disable-tftp
 endif
+
+LIBCURL_CONF_OPTS += \
+	--disable-alt-svc \
+	--disable-aws \
+	--disable-bearer-auth \
+	--disable-dateparse \
+	--disable-digest-auth \
+	--disable-form-api \
+	--disable-get-easy-options \
+	--disable-headers-api \
+	--disable-hsts \
+	--disable-mime \
+	--disable-netrc \
+	--disable-progress-meter \
+	--disable-tls-srp \
+	--disable-unix-sockets
 
 define LIBCURL_FIX_DOT_PC
 	printf 'Requires: openssl\n' >>$(@D)/libcurl.pc.in

@@ -13,7 +13,7 @@ LIBOPENSSL_INSTALL_STAGING = YES
 LIBOPENSSL_DEPENDENCIES = zlib
 HOST_LIBOPENSSL_DEPENDENCIES = host-zlib
 LIBOPENSSL_TARGET_ARCH = $(call qstrip,$(BR2_PACKAGE_LIBOPENSSL_TARGET_ARCH))
-LIBOPENSSL_CFLAGS = $(TARGET_CFLAGS)
+LIBOPENSSL_CFLAGS = $(TARGET_CFLAGS) -DOPENSSL_SMALL_FOOTPRINT
 LIBOPENSSL_PROVIDES = openssl
 LIBOPENSSL_CPE_ID_VENDOR = $(LIBOPENSSL_PROVIDES)
 LIBOPENSSL_CPE_ID_PRODUCT = $(LIBOPENSSL_PROVIDES)
@@ -78,12 +78,35 @@ define LIBOPENSSL_CONFIGURE_CMDS
 			$(if $(BR2_STATIC_LIBS),no-shared,shared) \
 			$(if $(BR2_PACKAGE_CRYPTODEV_LINUX),enable-devcryptoeng) \
 			no-rc5 \
-			enable-camellia \
+			no-camellia \
 			no-docs \
 			no-tests \
 			no-fuzz-libfuzzer \
 			no-fuzz-afl \
 			no-afalgeng \
+			no-aria \
+			no-async \
+			no-cmp \
+			no-cms \
+			no-ct \
+			no-dso \
+			no-ec2m \
+			no-egd \
+			no-engine \
+			no-gost \
+			no-legacy \
+			no-module \
+			no-ocsp \
+			no-scrypt \
+			no-sctp \
+			no-sm2 \
+			no-sm3 \
+			no-sm4 \
+			no-srp \
+			no-ssl-trace \
+			no-ts \
+			no-ui-console \
+			no-uplink \
 			$(if $(BR2_PACKAGE_LIBOPENSSL_BIN),,no-apps) \
 			$(if $(BR2_PACKAGE_LIBOPENSSL_ENABLE_CHACHA),,no-chacha) \
 			$(if $(BR2_PACKAGE_LIBOPENSSL_ENABLE_RC2),,no-rc2) \
@@ -106,7 +129,7 @@ define LIBOPENSSL_CONFIGURE_CMDS
 			$(if $(BR2_PACKAGE_LIBOPENSSL_UNSECURE),,no-unit-test no-crypto-mdebug no-autoerrinit) \
 			$(if $(BR2_PACKAGE_LIBOPENSSL_DYNAMIC_ENGINE),,no-dynamic-engine ) \
 			$(if $(BR2_PACKAGE_LIBOPENSSL_ENABLE_COMP),,no-comp) \
-			$(if $(BR2_STATIC_LIBS),zlib,zlib-dynamic) \
+			zlib \
 			$(if $(BR2_STATIC_LIBS),no-dso)
 endef
 
